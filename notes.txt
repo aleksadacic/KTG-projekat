@@ -1,0 +1,19 @@
+The algorithm behind this code is to generate a random undirected graph with a given number of vertices and edges, and display it graphically.
+
+The algorithm follows these steps:
+
+    Import required libraries (networkx, matplotlib, random)
+    Initialize the number of vertices (n) and edges (m)
+    Check if the number of edges is appropriate for the given number of vertices
+    Create an empty graph using networkx's Graph class
+    Add nodes to the graph using the range of n
+    Generate edges between the nodes by picking two random vertices and adding an edge between them with a random weight. This step is repeated m times, making sure that the same edge is not added twice and that the edge is not connecting a vertex to itself.
+    Use the spring_layout function from networkx to position the nodes in a 2D space.
+    Draw the graph using networkx's draw function, with labels on the nodes.
+    Get the edge labels (weights) using networkx's get_edge_attributes function
+    Draw the edge labels next to the edges using networkx's draw_networkx_edge_labels function.
+    Show the graph using matplotlib's show function.
+
+Note: The algorithm uses a brute force approach to generate edges,
+which could result in poor performance for large graphs.
+A more efficient algorithm would be to use a randomized edge generation method such as the Erdős–Rényi model.
