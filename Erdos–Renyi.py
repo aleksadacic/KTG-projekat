@@ -1,9 +1,13 @@
 import itertools
 import logging
-
-import networkx as nx
-import matplotlib.pyplot as plt
 import random
+
+import matplotlib.pyplot as plt
+import networkx as nx
+
+import warnings
+
+warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 
 def generate_graph(nodes, edges):
@@ -22,7 +26,7 @@ def generate_graph(nodes, edges):
 
     # Assign random weights to edges
     for u, v in graph.edges():
-        graph[u][v]['weight'] = random.uniform(5, 10)
+        graph[u][v]['weight'] = round(random.uniform(5, 10), 4)
 
     return graph
 
@@ -85,23 +89,40 @@ def color_graph(Graph, colors_input):
 # Note that the code finds the pair of nodes with the largest distance in terms of number of edges
 # (i.e., shortest path length), but not necessarily the pair of nodes with the largest Euclidean distance
 # if the graph is embedded in a 2D or 3D space.
-def furthest_red_nodes(Graph):
+def furthest_red_nodes(Graph, red_nodes):
     max_distance = 0
-    red_nodes = [node for node in Graph.nodes() if Graph.nodes[node].get('color') == 'red']
-    print("Red nodes: " + red_nodes.__str__())
-    node1, node2 = None, None
+    node1, node2 = -1, -1
     for node in red_nodes:
+        # uzimamo sve distance od trenutnog crvenog cvora do svih ostalih cvorova
         distances = nx.single_source_shortest_path_length(Graph, node)
-        print(node)
-        print("-----")
         for other_node, distance in distances.items():
-            print(other_node, distance)
-            if other_node in red_nodes and distance > max_distance:
+            # filtriramo da distance od trenutnog cvora budu u odnosu na crveni cvor
+            # i da distanca od jednog do drugog bude veca od trenutne najvece distance
+            if other_node in red_nodes and (
+                    distance > max_distance or (distance == max_distance and other_node > node2)):
                 max_distance = distance
                 node1, node2 = node, other_node
-        print("----------------")
     print(
-        "Najveca distanca po broju ivica: |N(" + node1.__str__() + ") - N(" + node2.__str__() + ")| = " + max_distance.__str__())
+        "Najveca distanca izmedju crvenih cvorova po broju grana izmedju njih: |N(" + node1.__str__() + ") - N(" + node2.__str__() + ")| = " + max_distance.__str__())
+    return node1, node2, max_distance
+
+
+def furthest_red_nodes_weights(Graph, red_nodes):
+    max_distance = 0
+    node1, node2 = -1, -1
+    for node in red_nodes:
+        # uzimamo sve distance od trenutnog crvenog cvora do svih ostalih cvorova
+        distances = nx.single_source_dijkstra_path_length(Graph, node)
+        print("Dijkstra's(", node, "): ", distances)
+        for other_node, distance in distances.items():
+            # filtriramo da distance od trenutnog cvora budu u odnosu na crveni cvor
+            # i da distanca od jednog do drugog bude veca od trenutne najvece distance
+            if other_node in red_nodes and (
+                    distance > max_distance or (distance == max_distance and other_node > node2)):
+                max_distance = distance
+                node1, node2 = node, other_node
+    print(
+        "Najveca distanca izmedju crvenih cvorova po dijkstrinom algoritmu: |N(" + node1.__str__() + ") - N(" + node2.__str__() + ")| = " + max_distance.__str__())
     return node1, node2, max_distance
 
 
@@ -112,42 +133,46 @@ def color_nodes(color_input):
     return color_arr
 
 
-n = 7
-m = 13
-try:
-    G = generate_graph(n, m)
+def main():
+    n = 7
+    m = 12
+    try:
+        G = generate_graph(n, m)
 
-    # # Try with 3 colors
-    # colors = ['red', 'green', 'blue']
-    # color_nodes(G, colors)
+        # TODO problem n=7, m=12, RGB
+        # colors = ['red', 'green', 'blue']
+        colors = ['red', 'green', 'blue', 'yellow']
+        # colors = ['red', 'green', 'blue', 'yellow', 'black']
 
-    # Try with 4 colors
-    colors = ['red', 'green', 'blue', 'yellow']
-    # color_nodes(G, colors)
+        coloring = color_graph(G, colors)
+        coloring = color_nodes(coloring)
+        colormap = [coloring[i] for i in range(len(G.nodes))]
+        pos = nx.spring_layout(G)
+        nx.draw(G, pos, node_color=colormap, with_labels=True)
+        nx.set_node_attributes(G, {node: coloring[node] for node in G.nodes()}, 'color')
 
-    # # Try with 5 colors
-    # colors = ['red', 'green', 'blue', 'yellow', 'black']
-    coloring = color_graph(G, colors)
-    coloring = color_nodes(coloring)
-    # nx.draw(G, node_color=[coloring[node] for node in G.nodes()], with_labels=True)
-    nx.draw(G, node_color=[coloring[i] for i in range(len(G.nodes))], with_labels=True)
-    nx.set_node_attributes(G, {node: coloring[node] for node in G.nodes()}, 'color')
-    print(nx.get_node_attributes(G, 'color'))
+        # Show edge weights
+        labels = nx.get_edge_attributes(G, 'weight')
+        nx.draw_networkx_edge_labels(G, pos, edge_labels=labels)
 
-    # TODO ne valja nesto najveca distanca po broju ivica
-    furthest_red_nodes(G)
+        plt.show()
 
-    # TODO izgelda zavisi da l moze graph i od weightova izmedju grana
+        red_nodes = [node for node in G.nodes if colormap[node] == 'red']
+        red_node_count = len(red_nodes)
 
-    # Show edge weights
-    # labels = nx.get_edge_attributes(G, 'weight')
-    # pos = nx.spring_layout(G)
-    # nx.draw_networkx_edge_labels(G, pos, edge_labels=labels)
+        if red_node_count <= 1:
+            logging.getLogger("KTG-LOGGER").error("Ne postoji dovoljno crvenih cvorova da bi se racunala distanca!")
+            return
 
-    plt.show()
+        red_nodes = [node for node in G.nodes() if G.nodes[node].get('color') == 'red']
+        furthest_red_nodes(G, red_nodes)
+        furthest_red_nodes_weights(G, red_nodes)
 
-except ValueError as e:
-    logging.getLogger("KTG-LOGGER").error("Erorr: " + e.__str__())
+    except ValueError as e:
+        logging.getLogger("KTG-LOGGER").error("Erorr: " + e.__str__())
+
+
+main()
 
 # In this code, we first generate a random graph using the nx.gnm_random_graph function. The function takes two
 # arguments: n, the number of nodes, and m, the number of edges.
